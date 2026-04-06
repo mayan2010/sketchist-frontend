@@ -1,120 +1,223 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useState, useRef, useCallback } from 'react'
 import './App.css'
+import axios from 'axios'
+
+const API_URL = 'http://localhost:8080/api/convert'
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [resultUrl, setResultUrl] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const handleFile = useCallback((file) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file.')
+      return
+    }
+    setError(null)
+    setResultUrl(null)
+    setSelectedFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+  }, [])
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    handleFile(file)
+  }, [handleFile])
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault()
+    setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false)
+  }, [])
+
+  const handleFileSelect = useCallback((e) => {
+    const file = e.target.files[0]
+    handleFile(file)
+  }, [handleFile])
+
+  const handleConvert = async () => {
+    if (!selectedFile) return
+
+    setLoading(true)
+    setError(null)
+    setResultUrl(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('image', selectedFile)
+
+      const response = await axios.post(API_URL, formData, {
+        responseType: 'blob',
+      })
+
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(`Server error: ${response.status} ${response.statusText || ''}`)
+      }
+
+      const blob = response.data
+      const url = URL.createObjectURL(blob)
+      setResultUrl(url)
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReset = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    if (resultUrl) URL.revokeObjectURL(resultUrl)
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setResultUrl(null)
+    setError(null)
+    setLoading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleDownload = () => {
+    if (!resultUrl) return
+    const a = document.createElement('a')
+    a.href = resultUrl
+    a.download = `converted-${selectedFile?.name || 'image'}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-container">
+      {/* Header */}
+      <header className="app-header">
+        <h1 className="app-title">Sketchy</h1>
+        <p className="app-subtitle">Upload an image and get a processed version back</p>
+      </header>
 
-      <div className="ticks"></div>
+      {/* Main Card */}
+      <div className="card">
+        <div className="card-body">
+          {/* Loading State */}
+          {loading && (
+            <div className="loading-overlay" id="loading-indicator">
+              <div className="spinner"></div>
+              <p className="loading-text">Processing your image…</p>
+            </div>
+          )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          {/* Drop Zone (shown when no file selected and not loading) */}
+          {!selectedFile && !loading && (
+            <div
+              id="drop-zone"
+              className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <span className="drop-zone-icon">🖼️</span>
+              <p className="drop-zone-text">
+                <strong>Click to upload</strong> or drag and drop<br />
+                PNG, JPG, WEBP, or GIF
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="file-input"
+                accept="image/*"
+                onChange={handleFileSelect}
+              />
+            </div>
+          )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          {/* Preview (shown when file selected and not loading) */}
+          {selectedFile && !loading && (
+            <div className="preview-section">
+              <div className="preview-container">
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="preview-image"
+                  id="preview-image"
+                />
+                <div className="preview-info">
+                  <span className="file-name">{selectedFile.name}</span>
+                  <span className="file-size">{formatFileSize(selectedFile.size)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="error-message" id="error-message">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* Result */}
+          {resultUrl && (
+            <div className="result-section" style={{ marginTop: '24px' }}>
+              <div className="result-label">✓ Processed Image</div>
+              <div className="result-container">
+                <img
+                  src={resultUrl}
+                  alt="Processed result"
+                  className="result-image"
+                  id="result-image"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        {selectedFile && !loading && (
+          <div className="actions">
+            <button
+              className="btn btn-secondary"
+              id="reset-btn"
+              onClick={handleReset}
+            >
+              ↺ Reset
+            </button>
+            {!resultUrl ? (
+              <button
+                className="btn btn-primary"
+                id="convert-btn"
+                onClick={handleConvert}
+              >
+                ✦ Convert
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                id="download-btn"
+                onClick={handleDownload}
+              >
+                ↓ Download
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
