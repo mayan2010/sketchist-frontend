@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import './App.css'
 import axios from 'axios'
 
@@ -17,7 +17,24 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [dragOver, setDragOver] = useState(false)
+  const [apiTime, setApiTime] = useState(null)
+  const [liveTime, setLiveTime] = useState(0)
   const fileInputRef = useRef(null)
+  const startTimeRef = useRef(null)
+
+  useEffect(() => {
+    let intervalId = null
+    if (loading) {
+      startTimeRef.current = performance.now()
+      setLiveTime(0)
+      intervalId = setInterval(() => {
+        setLiveTime(((performance.now() - startTimeRef.current) / 1000).toFixed(1))
+      }, 100)
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [loading])
 
   const handleFile = useCallback((file) => {
     if (!file) return
@@ -58,6 +75,7 @@ function App() {
     setLoading(true)
     setError(null)
     setResultUrl(null)
+    setApiTime(null)
 
     try {
       const formData = new FormData()
@@ -70,6 +88,9 @@ function App() {
       if (response.status < 200 || response.status >= 300) {
         throw new Error(`Server error: ${response.status} ${response.statusText || ''}`)
       }
+
+      const elapsed = ((performance.now() - startTimeRef.current) / 1000).toFixed(1)
+      setApiTime(elapsed)
 
       const blob = response.data
       const url = URL.createObjectURL(blob)
@@ -88,6 +109,7 @@ function App() {
     setPreviewUrl(null)
     setResultUrl(null)
     setError(null)
+    setApiTime(null)
     setLoading(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -108,6 +130,7 @@ function App() {
       <header className="app-header">
         <h1 className="app-title">Sketchy</h1>
         <p className="app-subtitle">Upload an image and get a processed version back</p>
+
       </header>
 
       {/* Main Card */}
@@ -118,6 +141,10 @@ function App() {
             <div className="loading-overlay" id="loading-indicator">
               <div className="spinner"></div>
               <p className="loading-text">Processing your image…</p>
+              <div className="live-timer" id="live-timer">
+                <span className="api-time-icon">⏱</span>
+                <span>{liveTime}s</span>
+              </div>
             </div>
           )}
 
@@ -131,7 +158,6 @@ function App() {
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
             >
-              <span className="drop-zone-icon">🖼️</span>
               <p className="drop-zone-text">
                 <strong>Click to upload</strong> or drag and drop<br />
                 PNG, JPG, WEBP, or GIF
@@ -167,14 +193,22 @@ function App() {
           {/* Error */}
           {error && (
             <div className="error-message" id="error-message">
-              ⚠️ {error}
+              {error}
             </div>
           )}
 
           {/* Result */}
           {resultUrl && (
             <div className="result-section" style={{ marginTop: '24px' }}>
-              <div className="result-label">✓ Processed Image</div>
+              <div className="result-header">
+                <div className="result-label">✓ Processed Image</div>
+                {apiTime && (
+                  <div className="api-time" id="api-time">
+                    <span className="api-time-icon">⏱</span>
+                    <span>{apiTime}s</span>
+                  </div>
+                )}
+              </div>
               <div className="result-container">
                 <img
                   src={resultUrl}
@@ -203,16 +237,29 @@ function App() {
                 id="convert-btn"
                 onClick={handleConvert}
               >
-                ✦ Convert
+                → Convert
               </button>
             ) : (
-              <button
-                className="btn btn-primary"
-                id="download-btn"
-                onClick={handleDownload}
-              >
-                ↓ Download
-              </button>
+              <>
+                <button
+                  className="btn btn-accent"
+                  id="repeat-btn"
+                  onClick={() => {
+                    if (resultUrl) URL.revokeObjectURL(resultUrl)
+                    setResultUrl(null)
+                    handleConvert()
+                  }}
+                >
+                  ⟳ Repeat
+                </button>
+                <button
+                  className="btn btn-primary"
+                  id="download-btn"
+                  onClick={handleDownload}
+                >
+                  ↓ Download
+                </button>
+              </>
             )}
           </div>
         )}
