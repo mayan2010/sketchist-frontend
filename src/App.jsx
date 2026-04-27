@@ -77,7 +77,7 @@ function App() {
     try {
       const formData = new FormData()
       formData.append('image', selectedFile)
-
+      console.log("API_URL:", API_URL);
       const response = await axios.post(API_URL, formData, {
         responseType: 'blob',
       })
