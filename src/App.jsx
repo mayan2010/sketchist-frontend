@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import './App.css'
 import axios from 'axios'
-const API_URL = 'http://'+(import.meta.env.VITE_API_URL || 'localhost')+':8080'+'/api/convert'
+// const API_URL = 'http://localhost:8080/api/convert'
+const API_URL = 'http://35.192.184.18:8080/api/convert'
 function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
