@@ -69,7 +69,6 @@ function App() {
 
   const handleConvert = async () => {
     if (!selectedFile) return
-    console.log("ENV_CHECK:", process.env.YOUR_VAR);
     setLoading(true)
     setError(null)
     setResultUrl(null)
@@ -127,7 +126,7 @@ function App() {
       
       {/* Header */}
       <header className="app-header">
-        <h1 className="app-title">Sketchy ??????????????</h1>
+        <h1 className="app-title">Sketchy</h1>
         <p className="app-subtitle">Upload an image and get a processed version back</p>
 
       </header>
