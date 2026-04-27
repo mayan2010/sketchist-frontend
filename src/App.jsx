@@ -69,7 +69,7 @@ function App() {
 
   const handleConvert = async () => {
     if (!selectedFile) return
-
+    console.log("ENV_CHECK:", process.env.YOUR_VAR);
     setLoading(true)
     setError(null)
     setResultUrl(null)
